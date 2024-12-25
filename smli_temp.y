@@ -666,10 +666,6 @@ var EvaluateTree(node* root){
             _var = var_table.data[search_vartable(root->name)];
             return(_var);
         }
-        else if(root->type == func){
-            var _var = EvaluateTree(root->right);
-            return(_var);
-        }
         else if(root->type == if_){
             var if_var = EvaluateTree(root->left);
             type_check(if_var, var_b);

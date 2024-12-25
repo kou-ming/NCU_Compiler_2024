@@ -7,5 +7,3 @@ flex -o lex.yy.c %1.l
 gcc -c -g -I.. lex.yy.c
 
 gcc -o %1 %1.tab.o lex.yy.o
-
-.\%1.exe
