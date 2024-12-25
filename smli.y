@@ -13,7 +13,9 @@ enum nodeType {
     plus_op, minus_op, mul_op, div_op, mod_op,
     and_op, or_op, not_op,
     greater_op, smaller_op, equal_op, sec_equal_op,
-    num, bool, variable, local, func, func_call, func_body, if_, define, nullnode
+    num, bool, variable, local,
+    func, func_call, func_body, param,
+    if_, define, nullnode
 };
 
 
@@ -24,8 +26,6 @@ typedef struct node{
     struct node *right;
     struct node *left;
 } node;
-
-
 
 enum varType {
     var_n, var_b
@@ -53,7 +53,6 @@ int search_vartable(char* var_name);
 variables local_vars;
 int search_local(char* var_name);
 void get_local(node* root);
-void clear_local();
 void go_back_to(char* varname);
 void define_local_var(node* root);
 
@@ -63,6 +62,8 @@ void cal_param(node* root);
 int equal_num[300];
 int equal_top;
 void get_equal_num(node* root);
+
+void type_check(var _var, enum varType _type);
 
 %}
 
@@ -344,6 +345,7 @@ def_stmt:
     }
     ;
 
+// 只用來定義global variable
 def_global_variable:
     ID{
         if(search_vartable($1) == -1){
@@ -427,6 +429,7 @@ def_loc_stmt:
     }
     ;
 
+// 呼叫函式
 fun_call:
     '(' fun_exp ')' { 
         // 建立func call的點，先不及著call
@@ -458,16 +461,13 @@ fun_call:
     ;
     params:
         param {
-            node* newnode = CreateNode(num, 0, "");
+            node* newnode = CreateNode(param, 0, "");
             newnode -> left = NULL;
             newnode -> right = $1;
             $$ = newnode;
-
-            // param_top ++;
-            // parameters[param_top] = $1;
         }
         | params param {
-            node* newnode = CreateNode(num, 0, "");
+            node* newnode = CreateNode(param, 0, "");
             newnode -> left = $1;
             newnode -> right = $2;
             $$ = newnode;
@@ -532,87 +532,75 @@ var EvaluateTree(node* root){
         if(root->type == plus_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value + right_var.value, var_n);
             return(_var);
         }
         else if(root->type == minus_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value - right_var.value, var_n);
             return(_var);
         }
         else if(root->type == mul_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value * right_var.value, var_n);
             return(_var);
         }
         else if(root->type == div_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value / right_var.value, var_n);
             return(_var);
         }
         else if(root->type == mod_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value % right_var.value, var_n);
             return(_var);
         }
         else if(root->type == greater_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value > right_var.value, var_b);
             return(_var);
         }
         else if(root->type == smaller_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_n || right_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_n);
+            type_check(right_var, var_n);
             var _var = create_var(left_var.value < right_var.value, var_b);
             return(_var);
         }
         else if(root->type == equal_op){
+
+            // 有2個以上的數進行比較會先使用get_equal_num獲得數字陣列
             if(root->right->type == sec_equal_op){
                 get_equal_num(root->right);
             }
             else{
                 var left_var = EvaluateTree(root->left);
                 var right_var = EvaluateTree(root->right);
-                if(left_var.type != var_n || right_var.type != var_n){
-                    printf("Type error!\n");
-                    exit(0);
-                }
+                type_check(left_var, var_n);
+                type_check(right_var, var_n);
                 var _var = create_var(left_var.value == right_var.value, var_b);
                 return(_var);
             }
+
+            // 將第一個數與其他數進行比較
             int equal_flag = 1, first_num = EvaluateTree(root->left).value;
             for(int i = 0 ; i <= equal_top; i++){
                 if(first_num != equal_num[i]){
@@ -620,38 +608,33 @@ var EvaluateTree(node* root){
                     break;
                 }
             }
-            equal_top = -1;
+            equal_top = -1;     // 清空equal_num的stack
             var _var = create_var(equal_flag, var_b);
+
             return(_var);
         }
         else if(root->type == sec_equal_op){
+            
         }
         else if(root->type == and_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_b || right_var.type != var_b){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_b);
+            type_check(right_var, var_b);
             var _var = create_var(left_var.value && right_var.value, var_b);
             return(_var);
         }
         else if(root->type == or_op){
             var left_var = EvaluateTree(root->left);
             var right_var = EvaluateTree(root->right);
-            if(left_var.type != var_b || right_var.type != var_b){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(left_var, var_b);
+            type_check(right_var, var_b);
             var _var = create_var(left_var.value || right_var.value, var_b);
             return(_var);
         }
         else if(root->type == not_op){
             var _var = EvaluateTree(root->left);
-            if(_var.type != var_b){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(_var, var_b);
             _var.value = !_var.value;
             return(_var);
         }
@@ -668,6 +651,7 @@ var EvaluateTree(node* root){
             return(_var);
         }
         else if(root->type == variable){
+            // 若是變數型態就會先去搜尋local接著才去搜尋global
             int index = search_local(root->name);
             var _var;
             if(index != -1){
@@ -679,19 +663,11 @@ var EvaluateTree(node* root){
         }
         else if(root->type == func){
             var _var = EvaluateTree(root->right);
-            if(_var.type != var_b){
-                printf("Type error!\n");
-                exit(0);
-            }
-            _var.value = !_var.value;
             return(_var);
         }
         else if(root->type == if_){
             var if_var = EvaluateTree(root->left);
-            if(if_var.type != var_b){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(if_var, var_b);
             if(if_var.value != 0){
                 return(EvaluateTree(root->right->left));
             }
@@ -711,25 +687,21 @@ var EvaluateTree(node* root){
                 }
                 else{
                     root->right = local_vars.data[index].func;
-
                 }
             }
             // 計算parameter
             cal_param(root->left);
 
-            if(root->right->left != NULL){
-                get_local(root->right->left);
-                local_vars.top ++;
-                local_vars.data[local_vars.top].name = "_ebp";
-                set_param(root->left); 
-                var ans = EvaluateTree(root->right->right);
-                go_back_to("_end");
+            get_local(root->right->left);
+            local_vars.top ++;
+            local_vars.data[local_vars.top].name = "_ebp";
+            set_param(root->left); 
 
-                return(ans);
-            }
-            else{
-                return(EvaluateTree(root->right->right));
-            }
+            var ans = EvaluateTree(root->right->right);
+            go_back_to("_end");
+
+            return(ans);
+
         }
         else if(root->type == func_body){
             // 取得內部define的變數，並最後用_end蓋起來
@@ -741,7 +713,7 @@ var EvaluateTree(node* root){
     }
 }
 
-
+// 用變數名稱搜尋global變數
 int search_vartable(char* var_name){
     for( int i = 0 ; i <= var_table.top ; i++){
         if(strcmp(var_name, var_table.data[i].name) == 0){
@@ -753,6 +725,7 @@ int search_vartable(char* var_name){
     return(-1);
 }
 
+// 用變數名稱搜尋local變數
 int search_local(char* var_name){
     for( int i = local_vars.top ; i > -1 ; i--){
         if(strcmp(var_name, local_vars.data[i].name) == 0){
@@ -764,25 +737,20 @@ int search_local(char* var_name){
     return(-1);
 }
 
+// 用於多個數進行equal判斷時
 void get_equal_num(node* root){
     if(root != NULL){
         if(root->type == sec_equal_op){
             equal_top ++;
             var _var = EvaluateTree(root->left);
-            if(_var.type != var_n){
-                printf("Type error!\n");
-                exit(0);
-            }
+            type_check(_var, var_n);
             equal_num[equal_top] = _var.value;
             if(root->right->type == sec_equal_op){
                 get_equal_num(root->right);
             }
             else{
                 _var = EvaluateTree(root->left);
-                if(_var.type != var_n){
-                    printf("Type error!\n");
-                    exit(0);
-                }
+                type_check(_var, var_n);
                 equal_top ++;
                 equal_num[equal_top] = _var.value;
             }
@@ -790,6 +758,7 @@ void get_equal_num(node* root){
     }
 }
 
+// 將function會用到的參數名稱加到local variable裡
 void get_local(node* root){
     if(root != NULL){
         get_local(root->left);
@@ -808,7 +777,7 @@ void go_back_to(char* varname){
     }
 }
 
-
+// 在function內define的變數
 void define_local_var(node* root){
     while(root != NULL){
         local_vars.top ++;
@@ -824,7 +793,7 @@ void define_local_var(node* root){
 }
 
 void cal_param(node* root){
-    // 參數從又到左
+    // 參數從右到左
     while(root != NULL){
         if(root->right->type == func){
         }
@@ -856,6 +825,13 @@ var create_var(int _value, enum varType _type){
     _var.value = _value;
     _var.type = _type;
     return(_var);
+}
+
+void type_check(var _var, enum varType _type){
+    if(_var.type != _type){
+        printf("Type error!\n");
+        exit(0);
+    }
 }
 
 
