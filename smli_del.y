@@ -13,9 +13,18 @@ enum nodeType {
     plus_op, minus_op, mul_op, div_op, mod_op,
     and_op, or_op, not_op,
     greater_op, smaller_op, equal_op, sec_equal_op,
-    num, bool, variable, local,
+    num, bool, variable,
     func, func_call, func_body, param,
     if_, define, nullnode
+};
+
+const char* nodeTypeNames[] = {
+    "plus_op", "minus_op", "mul_op", "div_op", "mod_op",
+    "and_op", "or_op", "not_op",
+    "greater_op", "smaller_op", "equal_op", "sec_equal_op",
+    "num", "bool", "variable",
+    "func", "func_call", "func_body", "param",
+    "if_", "define", "nullnode"
 };
 
 
@@ -34,8 +43,9 @@ enum varType {
 typedef struct{
     enum varType type;
     int value;
-    char *name;
-    node *func;
+    char* name;
+    node* func;
+    node* exp;
 }var;
 
 typedef struct{
@@ -55,6 +65,8 @@ int search_local(char* var_name);
 void get_local(node* root);
 void go_back_to(char* varname);
 void define_local_var(node* root);
+
+variables param_stack;
 
 void set_param(node* root);
 void cal_param(node* root);
@@ -336,12 +348,14 @@ not_op:
 // 定義 define
 def_stmt:
     '(' DEFINE def_global_variable exp ')' {
-        if($4->type == func){ 
-            var_table.data[search_vartable($3)].func = $4; // 若變數是function name
-        }
-        else{
-            var_table.data[search_vartable($3)].value = EvaluateTree($4).value;
-        }
+        printf("define %s's right type is %s\n", $3, nodeTypeNames[$4->type]);
+        var_table.data[search_vartable($3)].exp = $4; // 若變數是function name
+        // if($4->type == func){ 
+        //     var_table.data[search_vartable($3)].func = $4; // 若變數是function name
+        // }
+        // else{
+        //     var_table.data[search_vartable($3)].value = EvaluateTree($4).value;
+        // }
     }
     ;
 
@@ -535,6 +549,7 @@ var EvaluateTree(node* root){
             type_check(left_var, var_n);
             type_check(right_var, var_n);
             var _var = create_var(left_var.value + right_var.value, var_n);
+            printf("plus: %d\n", _var.value);
             return(_var);
         }
         else if(root->type == minus_op){
@@ -551,6 +566,7 @@ var EvaluateTree(node* root){
             type_check(left_var, var_n);
             type_check(right_var, var_n);
             var _var = create_var(left_var.value * right_var.value, var_n);
+            printf("mul: %d\n", _var.value);
             return(_var);
         }
         else if(root->type == div_op){
@@ -655,16 +671,18 @@ var EvaluateTree(node* root){
             int index = search_local(root->name);
             var _var;
             if(index != -1){
-                _var = local_vars.data[index];
+                _var = local_vars.data[search_local(root->name)];
+                /* _var = EvaluateTree(local_vars.data[index].exp); */
+                printf("_var ( %s )'s value is %d\n", root->name, _var.value);
                 return(_var);
             }
             _var = var_table.data[search_vartable(root->name)];
             return(_var);
         }
-        else if(root->type == func){
+        /* else if(root->type == func){
             var _var = EvaluateTree(root->right);
             return(_var);
-        }
+        } */
         else if(root->type == if_){
             var if_var = EvaluateTree(root->left);
             type_check(if_var, var_b);
@@ -677,31 +695,47 @@ var EvaluateTree(node* root){
         }
         else if(root->type == func_call){
             // 取得內部define的local變數
+            printf("[+] now call function: %s, ", root->name);
             if(root->name != ""){
                 int index = search_local(root->name);
                 if(index == -1){
                     index = search_vartable(root->name);
                     if(index > -1){
-                        root->right = var_table.data[index].func;
+                        root->right = var_table.data[index].exp;
                     }
                 }
                 else{
-                    root->right = local_vars.data[index].func;
+                    root->right = local_vars.data[index].exp;
                 }
             }
+            printf("func first type: %s\n", nodeTypeNames[root->right->type]);
             // 計算parameter
             cal_param(root->left);
 
-            get_local(root->right->left);
+            /* get_local(root->right->left);
             local_vars.top ++;
             local_vars.data[local_vars.top].name = "_ebp";
-            set_param(root->left); 
+            printf("[+] get local finish\n"); */
+            /* set_param(root->left); 
+            printf("[+] set param finish\n"); */
 
-            var ans = EvaluateTree(root->right->right);
+            var ans = EvaluateTree(root->right);
             go_back_to("_end");
 
             return(ans);
 
+        }
+        else if(root->type == func){
+            get_local(root->left);
+            local_vars.top ++;
+            local_vars.data[local_vars.top].name = "_ebp";
+            printf("[+] get local finish\n");
+
+            set_param(root->left); 
+            printf("[+] set param finish\n");
+
+            var _var = EvaluateTree(root->right);
+            return(_var);
         }
         else if(root->type == func_body){
             // 取得內部define的變數，並最後用_end蓋起來
@@ -761,10 +795,12 @@ void get_equal_num(node* root){
 // 將function會用到的參數名稱加到local variable裡
 void get_local(node* root){
     if(root != NULL){
+        printf("%s\n", nodeTypeNames[root->type]);
         get_local(root->left);
         local_vars.top ++;
         local_vars.data[local_vars.top].name = root->name;
         local_vars.data[local_vars.top].value = 0;
+        printf("[+] get local variable: %s\n", root->name);
     }
 }
 
@@ -783,7 +819,7 @@ void define_local_var(node* root){
         local_vars.top ++;
         local_vars.data[local_vars.top].name = root->name;
         if(root->right->type == func){
-            local_vars.data[search_local(root->name)].func = root->right; // 若變數是function name
+            local_vars.data[search_local(root->name)].exp = root->right; // 若變數是function name
         }
         else{
             local_vars.data[local_vars.top].value = EvaluateTree(root->right).value;
@@ -793,31 +829,28 @@ void define_local_var(node* root){
 }
 
 void cal_param(node* root){
-    // 參數從右到左
+    // 參數從右到左讀取
     while(root != NULL){
-        if(root->right->type == func){
-        }
-        else{
-            int p = EvaluateTree(root->right).value; 
-            root->value = p;
-        }
+        param_stack.top ++ ; 
+        param_stack.data[param_stack.top].exp = root->right;
+        printf("[+] push param_stack, now top is: %d\n", param_stack.top);
         root = root -> left;
     }
 }
 
 
 void set_param(node* root){
-    int top = local_vars.top -1; 
-    // 參數從右到左
-    while(root != NULL){
-        if(root -> right -> type == func){
-        }
-        else{
-            local_vars.data[top].value = root->value;
-        }
-        root = root -> left;
-        top --;
+    if(root != NULL){
+        set_param(root->left);
+        printf("[+] set param in local_var( %s )\n", root->name);
+        /* local_vars.data[search_local(root->name)].exp = param_stack.data[param_stack.top].exp; */
+        local_vars.data[search_local(root->name)].value = EvaluateTree(param_stack.data[param_stack.top].exp).value;
+        /* printf("%d\n", EvaluateTree(param_stack.data[param_stack.top].exp).value); */
+        param_stack.top --;
+        printf("[+] pop param_stack, now top is: %d\n", param_stack.top);
     }
+    /* int top = local_vars.top -1;  */
+    // 參數從右到左讀取
 }
 
 var create_var(int _value, enum varType _type){
@@ -845,6 +878,7 @@ int main(int argc, char *argv[])
 {
     var_table.top = -1;
     local_vars.top = -1;
+    param_stack.top = -1;
     equal_top = -1;
 
     if(argc > 1){
