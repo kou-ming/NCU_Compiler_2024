@@ -5,3 +5,10 @@
 
 (print-num (z 1))
 
+
+(define chose
+  (fun (chose-fun x y)
+    (if (chose-fun x y) x y)))
+
+(print-num (chose (fun (x y) (> x y)) 2 1))
+

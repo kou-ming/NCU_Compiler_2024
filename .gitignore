@@ -4,3 +4,4 @@
 *.output
 *.h
 *.o
+*.lsp

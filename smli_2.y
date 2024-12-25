@@ -644,21 +644,6 @@ int EvaluateTree(node* root){
             }
         }
         cal_param(root->left);
-        /* int index = search_vartable($1);
-        printf("%s 's func index is %d\n", $1, index);
-        if(index > -1){
-            $$ = $1;
-        } */
-        // not fix 右邊為空
-        /* if(root->right != NULL){
-            printf("param not null\n");
-        }
-        else{
-            printf("param null\n");
-        } */
-        /* if(root->left == NULL){
-            printf("func param is null\n");
-        } */
 
         if(root->right->left != NULL){
             /* printf("have local\n"); */

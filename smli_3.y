@@ -65,6 +65,8 @@ void clear_local();
 void go_back_to(char* varname);
 void define_local_var(node* root);
 
+int parameters[300];
+int param_top;
 void set_param(node* root);
 void cal_param(node* root);
 
@@ -408,14 +410,14 @@ fun_ids:
     ids:
         ID {
             // node* newnode = CreateNode(local, 0 ,$1);
-            // printf("record func id: %s\n", $1);
+            printf("record func id: %s\n", $1);
             node* newnode = CreateNode(variable, 0 ,$1);
             newnode -> left = NULL;
             newnode -> right = NULL;
             $$ = newnode;
         }
         | ids ID {
-            // printf("record func id: %s\n", $2);
+            printf("record func id: %s\n", $2);
             node* newnode = CreateNode(variable, 0 ,$2);
             newnode -> left = $1;
             newnode -> right = NULL;
@@ -512,7 +514,6 @@ fun_call:
             // if($1 != NULL){
             //     printf("param is not NULL\n");
             // }
-            printf("create param\n");
             node* newnode = CreateNode(num, 0, "");
             newnode -> left = NULL;
             newnode -> right = $1;
@@ -800,6 +801,19 @@ void go_back_to(char* varname){
     }
 }
 
+void clear_local(){
+    local_vars.top--;
+    /* printf("localtop: %d\n", local_vars.top); */
+    for(; local_vars.top >= 0 ; local_vars.top --){
+        if(strcmp("_ebp", local_vars.data[local_vars.top].name) == 0){
+            break;
+        }
+        else{
+            /* printf("clear %s\n", local_vars.data[local_vars.top].name); */
+        }
+    }
+    /* printf("localtop: %d\n", local_vars.top); */
+}
 
 void define_local_var(node* root){
     while(root != NULL){
@@ -819,13 +833,12 @@ void define_local_var(node* root){
 void cal_param(node* root){
     // 參數從又到左
     while(root != NULL){
-        if(root->right->type == func){
-            printf("this param is a func\n");
-        }
-        else{
-            int p = EvaluateTree(root->right); 
-            root->value = p;
-        }
+        int p = EvaluateTree(root->right); 
+        root->value = p;
+        /* printf("%d", p); */
+        /* printf("set %d in %s\n", p, local_vars.data[top].name); */
+        /* printf("set %d in %s\n", p, local_vars.data[top].name);
+        local_vars.data[top].value = p; */
         root = root -> left;
     }
 }
@@ -835,14 +848,9 @@ void set_param(node* root){
     int top = local_vars.top -1; 
     // 參數從右到左
     while(root != NULL){
-        if(root -> right -> type == func){
-            printf("this local var %s is a func\n", local_vars.data[top].name);
-        }
-        else{
-            printf("set %d in %s\n", root->value, local_vars.data[top].name);
-            local_vars.data[top].value = root->value;
-        }
         /* printf("%d", p); */
+        printf("set %d in %s\n", root->value, local_vars.data[top].name);
+        local_vars.data[top].value = root->value;
         root = root -> left;
         top --;
     }
@@ -859,6 +867,7 @@ int main(int argc, char *argv[])
 {
     var_table.top = -1;
     local_vars.top = -1;
+    param_top = -1;
     equal_top = -1;
 
     if(argc > 1){
